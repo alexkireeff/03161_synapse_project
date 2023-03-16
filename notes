@@ -1,5 +1,12 @@
-all the pins on the arduion directly connect to all the pins on the board; note the orientation of the arduino board
+Arduino Pin : Board Pin
+    5  : 5
+    6  : 6
+    7  : 7
+    8  : 8
+    9  : 9
+    10 : 10
+    11 : 11
 
-
-
+upload code:
+    sudo arduino --board arduino:avr:uno --port /dev/ttyACM0 --upload ./code.ino
 
