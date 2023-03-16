@@ -6,7 +6,3 @@ Arduino Pin : Board Pin
     9  : 9
     10 : 10
     11 : 11
-
-upload code:
-    sudo arduino --board arduino:avr:uno --port /dev/ttyACM0 --upload ./code.ino
-
