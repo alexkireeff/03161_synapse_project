@@ -81,10 +81,8 @@ void setup() {
 
 
 void loop() {
-    // TODO NMDAR?
     // TODO EPSP needs to be renamed to Presynaptic Spike and then we need to include stochasticity for vesicle release
-    // TODO spike threshold
-    // TODO refactory period
+    // TODO spike threshold and period and then refactory period
     // TODO AMPAR growth
     // TODO refactor code so we can have arbitrarily many neurons
     digitalWrite(NMDAR, nmdar_is_active);
