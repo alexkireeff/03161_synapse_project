@@ -81,13 +81,14 @@ void setup() {
 
 
 void loop() {
-    // TODO EPSP needs to be renamed to Presynaptic Spike and then we need to include stochasticity for vesicle release
     // TODO NMDAR?
+    // TODO EPSP needs to be renamed to Presynaptic Spike and then we need to include stochasticity for vesicle release
     // TODO spike threshold
     // TODO refactory period
     // TODO AMPAR growth
     // TODO refactor code so we can have arbitrarily many neurons
-    digitalWrite(NMDAR, (membrane_potential > nmdar_thresh));
+    digitalWrite(NMDAR, nmdar_is_active);
+    nmdar_is_active = membrane_potential > nmdar_thresh;
 
     analogWrite(MP, byte(membrane_potential));
     membrane_potential = membrane_potential / pow(e, tau);

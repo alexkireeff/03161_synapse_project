@@ -13,7 +13,7 @@
     };
       mkShell {
         buildInputs = with pkgs; [
-          arduino
+          arduino-cli
         ];
 
         shellHook = ''

@@ -1,5 +1,5 @@
 upload:
-	sudo arduino --board arduino:avr:uno --port /dev/ttyACM0 --upload ./code.ino
+	sudo arduino-cli compile -u -b arduino:avr:uno -p /dev/ttyACM0 ./
 
-find:
-	ls -lashF /dev | grep "ACM\|USB"
+list:
+	sudo arduino-cli board list
