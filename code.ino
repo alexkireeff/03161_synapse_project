@@ -19,6 +19,7 @@
 
 // Model Constants
 #define nmdar_thresh 10
+#define nmdar_epsp_const 10
 #define tau 1e-4
 #define e 2.71828
 #define ampar_epsp_const 1
