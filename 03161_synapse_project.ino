@@ -22,23 +22,29 @@ const int AMPAR_PINS[] = {9, 10, 11};
 #define NUM_NEURONS 3
 
 #define spike_thresh_mV -50
-#define spike_refactory_period_seconds 1
+#define spike_refactory_period_milliseconds 4000
+#define spike_period_milliseconds 100
+#define spike_slope_mV 100
 
 #define membrane_max_mV 70
 #define membrane_min_mV -70
 
 #define nmdar_thresh_mV -60
-#define nmdar_to_mV 0.5
+#define nmdar_to_mV 1.5
 
 // time constant for leaky neuron model
-#define tau 5e-4
+#define tau 5e-3
 
 #define ampar_min_percentage 0
 #define ampar_max_percentage 100
 #define ampar_init_percentage 50
-#define ampar_delta_percentage 1
-#define ampar_percentage_to_mV 0.01
+#define ampar_add_percentage 20
+#define ampar_sub_percentage 1
+#define ampar_percentage_to_mV 0.05
 
+
+// keeps track of when spike was
+unsigned long spike_start_time;
 
 // keeps track of whether NMDAR can fire
 bool nmdar_is_active;
@@ -77,6 +83,8 @@ void setup() {
         ampar_percent_saturation[i] = ampar_init_percentage;
     };
 
+    spike_start_time = millis();
+
     Serial.begin(9600);
 }
 
@@ -89,7 +97,10 @@ void loop() {
         aggregate_membrane_potential_mV = aggregate_membrane_potential_mV + membrane_potential_mV[i];
     }
 
-    // TODO comment me
+    Serial.print(aggregate_membrane_potential_mV);
+    Serial.println();
+
+    // need to standardize aggregate membrane potential to convert it to a byte
     double standardized_aggregate_membrane_potential_mV = (aggregate_membrane_potential_mV - membrane_min_mV) / (membrane_max_mV - membrane_min_mV) * 255;
 
     // need to put in [0, 255] because that is the range of values for bytes without overflowing
@@ -116,7 +127,7 @@ void loop() {
         // update membrane potential if EPSP
         if (!epsp_prev[i] && epsp_curr[i]) {
             membrane_potential_mV[i] = membrane_potential_mV[i] + (ampar_percentage_to_mV * ampar_percent_saturation[i]);
-            ampar_percent_saturation[i] = ampar_percent_saturation[i] - ampar_delta_percentage;
+            ampar_percent_saturation[i] = ampar_percent_saturation[i] - ampar_sub_percentage;
 
             membrane_potential_mV[i] = membrane_potential_mV[i] + nmdar_to_mV * nmdar_is_active;
         }
@@ -127,12 +138,27 @@ void loop() {
 
     }
 
-
     // handle spiking
-    if (spike_thresh_mV < aggregate_membrane_potential_mV) {
-        // TODO AMPAR growth
+    unsigned long current_time = millis();
+    // if no spike in last spike_refactory_period_milliseconds AND above spike threshold
+    // OR if we started spiking less than spike_period_milliseconds ago then
+    // spike!
+    if ((spike_thresh_mV < aggregate_membrane_potential_mV &&
+            spike_start_time + spike_refactory_period_milliseconds < current_time)
+        || spike_start_time + spike_period_milliseconds > current_time)
+        {
+        // if first time step of spike
+        if (spike_start_time + spike_refactory_period_milliseconds < current_time) {
+            for(int i = 0; i < NUM_NEURONS; i++){
+                ampar_percent_saturation[i] = ampar_percent_saturation[i] + ampar_add_percentage;
+            }
+            // TODO AMPAR growth only at first time step of spike
+            spike_start_time = millis();
+        }
 
-        // TODO spike threshold and then period where the voltage gated sodium channels can't fire again
+        for(int i = 0; i < NUM_NEURONS; i++){
+            membrane_potential_mV[i] = membrane_potential_mV[i] + (spike_slope_mV / NUM_NEURONS);
+        }
 
     }
 
@@ -149,10 +175,10 @@ void loop() {
 
         // NOTE assumes new_aggregate_membrane_potential_mV can't be 0 and out of range
         if (new_aggregate_membrane_potential_mV > membrane_max_mV){
-            membrane_potential_mV[i] = membrane_potential_mV[i] / new_aggregate_membrane_potential_mV * membrane_max_mV;
+            membrane_potential_mV[i] = (membrane_potential_mV[i] / (new_aggregate_membrane_potential_mV - membrane_min_mV)) * (membrane_max_mV - membrane_min_mV);
 
         } else if (new_aggregate_membrane_potential_mV < membrane_min_mV) {
-            membrane_potential_mV[i] = membrane_potential_mV[i] / new_aggregate_membrane_potential_mV * membrane_min_mV;
+            membrane_potential_mV[i] = 0;
 
         }
 
