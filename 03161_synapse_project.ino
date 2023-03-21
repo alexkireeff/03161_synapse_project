@@ -118,7 +118,8 @@ void loop() {
 
 
         // write the current ampar count to the LED
-        analogWrite(AMPAR_PINS[i], ampar_percent_saturation[i]);
+        double standardized_ampar_percent_saturation = (ampar_percent_saturation[i] - ampar_min_percentage - 20) / (ampar_max_percentage - ampar_min_percentage) * 255;
+        analogWrite(AMPAR_PINS[i], byte(ampar_percent_saturation[i]));
 
 
         // update membrane potential if EPSP
