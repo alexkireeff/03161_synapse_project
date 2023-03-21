@@ -14,6 +14,8 @@
       mkShell {
         buildInputs = with pkgs; [
           arduino-cli
+          gnumake
+          screen
         ];
 
         shellHook = ''
