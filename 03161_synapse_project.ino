@@ -1,145 +1,119 @@
-// If we are above the NMDAR threshold, the yellow light turns on
-#define NMDAR 4
+// NOTE EPSP stands for "Exictatory Presynaptic Potential"
 
-// Membrane Potential is represented by the red LED at the top of the board
-#define MP 5
+// NMDAR active LED
+#define NMDAR_PIN 4
 
-// Synapses are the buttons
-// Technically, these could be interrupts, but then I can only use 2
-#define EPSP_1 6
-#define EPSP_2 7
-#define EPSP_3 8
+// Membrane Potential LED
+#define MP_PIN 5
 
-// Number of AMPARs at each synapse
-#define AMPAR_1 9
-#define AMPAR_2 10
-#define AMPAR_3 11
+// EPSP button pins
+const int EPSP_PINS[] = {6, 7, 8};
 
+// AMPAR light pins
+const int AMPAR_PINS[] = {9, 10, 11};
 
+// Constants
+#define e 2.71828
 
 // Model Constants
+#define NUM_NEURONS 3
 #define nmdar_thresh 10
 #define nmdar_epsp_const 10
 #define tau 1e-4
-#define e 2.71828
 #define ampar_epsp_const 1
 #define ampar_DEC_const 10
-#define prob_vesicle_release 
 
 // keep track if NMDAR should fire
 bool nmdar_is_active;
 
 // keep track of membrane potential
-double membrane_potential;
+double membrane_potential[NUM_NEURONS]; // TODO -70 to 70 (mV)
 
 // keeps track if the epsp button was previously high
-bool epsp_prev_1;
-bool epsp_prev_2;
-bool epsp_prev_3;
+bool epsp_prev[NUM_NEURONS];
 
 // so we don't have to call digitalRead multiple times
-bool epsp_curr_1;
-bool epsp_curr_2;
-bool epsp_curr_3;
+bool epsp_curr[NUM_NEURONS];
 
 // keeps track of the current AMPAR count at each synapse
-int ampar_1_count;
-int ampar_2_count;
-int ampar_3_count;
+int ampar_count[NUM_NEURONS]; // TODO 0 to 100 (percent)
 
 
 
 void setup() {
-    pinMode(NMDAR, OUTPUT);
+    pinMode(NMDAR_PIN, OUTPUT);
     nmdar_is_active = false;
 
-    pinMode(MP, OUTPUT);
-    membrane_potential = 255;
+    pinMode(MP_PIN, OUTPUT);
 
-    pinMode(EPSP_1, INPUT);
-    pinMode(EPSP_2, INPUT);
-    pinMode(EPSP_3, INPUT);
+    for (int i = 0; i < NUM_NEURONS; i++){
+        membrane_potential[i] = 255;
 
-    epsp_curr_1 = HIGH;
-    epsp_curr_2 = HIGH;
-    epsp_curr_3 = HIGH;
+        pinMode(EPSP_PINS[i], INPUT);
 
-    epsp_prev_1 = HIGH;
-    epsp_prev_2 = HIGH;
-    epsp_prev_3 = HIGH;
+        epsp_curr[i] = HIGH;
 
+        epsp_prev[i] = HIGH;
 
-    pinMode(AMPAR_1, OUTPUT);
-    pinMode(AMPAR_2, OUTPUT);
-    pinMode(AMPAR_3, OUTPUT);
+        pinMode(AMPAR_PINS[i], OUTPUT);
+    };
 
-    ampar_1_count = 128;
-    ampar_2_count = 60;
-    ampar_3_count = 0;
+    ampar_count[0] = 128;
+    ampar_count[1] = 60;
+    ampar_count[2] = 0;
 }
 
 
 
 void loop() {
-    // TODO EPSP needs to be renamed to Presynaptic Spike and then we need to include stochasticity for vesicle release
-    // TODO spike threshold and period and then refactory period
+    // TODO refactor code to have everything in correct units
     // TODO AMPAR growth
-    // TODO refactor code so we can have arbitrarily many neurons
-    digitalWrite(NMDAR, nmdar_is_active);
-    nmdar_is_active = membrane_potential > nmdar_thresh;
+    // TODO spike threshold and then period where the voltage gated sodium channels can't fire again
 
-    analogWrite(MP, byte(membrane_potential));
-    membrane_potential = membrane_potential / pow(e, tau);
+    // update membrane LED
+    int aggregate_membrane_potential = 0;
 
-    epsp_curr_1 = digitalRead(EPSP_1);
-    epsp_curr_2 = digitalRead(EPSP_2);
-    epsp_curr_3 = digitalRead(EPSP_3);
-
-    analogWrite(AMPAR_1, ampar_1_count);
-    analogWrite(AMPAR_2, ampar_2_count);
-    analogWrite(AMPAR_3, ampar_3_count);
-
-    if (!epsp_prev_1 && epsp_curr_1) {
-        membrane_potential = membrane_potential + (ampar_epsp_const * ampar_1_count);
-        ampar_1_count = ampar_1_count - ampar_DEC_const;
-
-        if (nmdar_is_active) {
-            membrane_potential = membrane_potential + nmdar_epsp_const;
-        }
+    for(int i = 0; i < NUM_NEURONS; i++){
+        aggregate_membrane_potential += membrane_potential[i];
     }
 
-    if (!epsp_prev_2 && epsp_curr_2) {
-        membrane_potential = membrane_potential + (ampar_epsp_const * ampar_2_count);
-        ampar_2_count = ampar_2_count - ampar_DEC_const;
+    analogWrite(MP_PIN, byte(aggregate_membrane_potential));
 
-        if (nmdar_is_active) {
-            membrane_potential = membrane_potential + nmdar_epsp_const;
+
+    // update NMDAR LED
+    digitalWrite(NMDAR_PIN, nmdar_is_active);
+    nmdar_is_active = aggregate_membrane_potential > nmdar_thresh;
+
+
+    for (int i = 0; i < NUM_NEURONS; i++){
+        membrane_potential[i] = membrane_potential[i] / pow(e, tau);
+
+        // read the current state of the button
+        epsp_curr[i] = digitalRead(EPSP_PINS[i]);
+
+
+        // write the current ampar count to the LED
+        analogWrite(AMPAR_PINS[i], ampar_count[i]);
+
+
+        // update membrane potential if EPSP
+        if (!epsp_prev[i] && epsp_curr[i]) {
+            membrane_potential[i] = membrane_potential[i] + (ampar_epsp_const * ampar_count[i]);
+            ampar_count[i] = ampar_count[i] - ampar_DEC_const;
+
+            if (nmdar_is_active) {
+                membrane_potential[i] = membrane_potential[i] + nmdar_epsp_const;
+            }
         }
+
+
+        // updated previous epsp to current epsp
+        epsp_prev[i] = epsp_curr[i];
+
+
+        // keep numbers in range
+        membrane_potential[i] = min(255, max(membrane_potential[i], 0));
+
+        ampar_count[i] = min(255, max(ampar_count[i], 0));
     }
-
-    if (!epsp_prev_3 && epsp_curr_3) {
-        membrane_potential = membrane_potential + (ampar_epsp_const * ampar_3_count);
-        ampar_3_count = ampar_3_count - ampar_DEC_const;
-
-        if (nmdar_is_active) {
-            membrane_potential = membrane_potential + nmdar_epsp_const;
-        }
-    }
-
-
-    // updated previous epsp to current epsp
-
-    epsp_prev_1 = epsp_curr_1;
-    epsp_prev_2 = epsp_curr_2;
-    epsp_prev_3 = epsp_curr_3;
-
-
-    // keep numbers in range
-
-    membrane_potential = min(255, max(membrane_potential, 0));
-
-    ampar_1_count = min(255, max(ampar_1_count, 0));
-    ampar_2_count = min(255, max(ampar_2_count, 0));
-    ampar_3_count = min(255, max(ampar_3_count, 0));
-
 }
