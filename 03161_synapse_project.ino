@@ -24,7 +24,7 @@ const int AMPAR_PINS[] = {9, 10, 11};
 #define spike_thresh_mV -50
 #define spike_refactory_period_milliseconds 4000
 #define spike_period_milliseconds 100
-#define spike_slope_mV 100
+#define spike_multiplier 2
 
 #define membrane_max_mV 70
 #define membrane_min_mV -70
@@ -33,7 +33,7 @@ const int AMPAR_PINS[] = {9, 10, 11};
 #define nmdar_to_mV 1.5
 
 // time constant for leaky neuron model
-#define tau 5e-3
+#define tau 3e-4
 
 #define ampar_min_percentage 0
 #define ampar_max_percentage 100
@@ -97,9 +97,6 @@ void loop() {
         aggregate_membrane_potential_mV = aggregate_membrane_potential_mV + membrane_potential_mV[i];
     }
 
-    Serial.print(aggregate_membrane_potential_mV);
-    Serial.println();
-
     // need to standardize aggregate membrane potential to convert it to a byte
     double standardized_aggregate_membrane_potential_mV = (aggregate_membrane_potential_mV - membrane_min_mV) / (membrane_max_mV - membrane_min_mV) * 255;
 
@@ -150,14 +147,15 @@ void loop() {
         // if first time step of spike
         if (spike_start_time + spike_refactory_period_milliseconds < current_time) {
             for(int i = 0; i < NUM_NEURONS; i++){
-                ampar_percent_saturation[i] = ampar_percent_saturation[i] + ampar_add_percentage;
+                if (1 < membrane_potential_mV[i]) { 
+                    ampar_percent_saturation[i] = ampar_percent_saturation[i] + ampar_add_percentage;
+                }
             }
-            // TODO AMPAR growth only at first time step of spike
             spike_start_time = millis();
         }
 
         for(int i = 0; i < NUM_NEURONS; i++){
-            membrane_potential_mV[i] = membrane_potential_mV[i] + (spike_slope_mV / NUM_NEURONS);
+            membrane_potential_mV[i] = membrane_potential_mV[i] * spike_multiplier;
         }
 
     }
