@@ -91,7 +91,6 @@ void setup() {
 
 
 void loop() {
-    // update membrane LED
     double aggregate_membrane_potential_mV = membrane_min_mV;
     for(int i = 0; i < NUM_NEURONS; i++){
         aggregate_membrane_potential_mV = aggregate_membrane_potential_mV + membrane_potential_mV[i];
@@ -100,11 +99,11 @@ void loop() {
     // need to standardize aggregate membrane potential to convert it to a byte
     double standardized_aggregate_membrane_potential_mV = (aggregate_membrane_potential_mV - membrane_min_mV) / (membrane_max_mV - membrane_min_mV) * 255;
 
-    // need to put in [0, 255] because that is the range of values for bytes without overflowing
+    // update membrane potential LED
     analogWrite(MP_PIN, byte(standardized_aggregate_membrane_potential_mV));
 
 
-    // update NMDAR LED
+    // update NMDAR Magnesium Eviction LED
     digitalWrite(NMDAR_PIN, nmdar_is_active);
     nmdar_is_active = nmdar_thresh_mV < aggregate_membrane_potential_mV;
 
@@ -146,6 +145,8 @@ void loop() {
         || spike_start_time + spike_period_milliseconds > current_time)
         {
         // if first time step of spike
+        // then update ampar_percent_saturation
+        // then save that we just started a spike
         if (spike_start_time + spike_refactory_period_milliseconds < current_time) {
             for(int i = 0; i < NUM_NEURONS; i++){
                 if (1 < membrane_potential_mV[i]) { 
@@ -155,6 +156,7 @@ void loop() {
             spike_start_time = millis();
         }
 
+        // if we are spiking, increase membrane potential
         for(int i = 0; i < NUM_NEURONS; i++){
             membrane_potential_mV[i] = membrane_potential_mV[i] * spike_multiplier;
         }
